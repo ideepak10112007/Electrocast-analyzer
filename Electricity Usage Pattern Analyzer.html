@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Electricity Usage Pattern Analyzer (Voice‑First)</title>
+<style>
+  :root{
+    --bg:#0b1220; --card:#121a2b; --accent:#00e5ff; --accent2:#7cffb2; --text:#eef3ff; --muted:#9fb0d3; --danger:#ff5c7a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; background:var(--bg); color:var(--text)}
+  .wrap{max-width:980px;margin:0 auto;padding:18px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00)); border:1px solid rgba(255,255,255,0.08); box-shadow:0 10px 30px rgba(0,0,0,0.35); border-radius:18px; padding:18px; backdrop-filter: blur(4px)}
+  h1{font-size:clamp(22px,2.8vw,32px); margin:0 0 12px; letter-spacing:.3px}
+  h2{font-size:clamp(18px,2.2vw,24px); margin:18px 0 10px}
+  .grid{display:grid; gap:14px}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  @media (max-width:800px){.g2,.g3{grid-template-columns:1fr}}
+  label{display:block; font-size:14px; color:var(--muted); margin-bottom:6px}
+  input, select, button, textarea{width:100%; padding:14px 16px; border-radius:14px; border:1px solid rgba(255,255,255,0.12); background:#0f1729; color:var(--text); font-size:16px}
+  input:focus,select:focus,button:focus{outline:2px solid var(--accent)}
+  .row{display:flex; gap:10px; align-items:center}
+  .btn{cursor:pointer; border:1px solid rgba(255,255,255,0.14); background:linear-gradient(180deg,#0f1b33,#0d1526); transition:transform .05s ease, box-shadow .2s ease}
+  .btn:hover{box-shadow:0 0 0 2px rgba(0,229,255,.25)}
+  .btn:active{transform:scale(.98)}
+  .btn.primary{background:linear-gradient(180deg,#012a33,#00131a); border-color:rgba(0,229,255,.45)}
+  .btn.success{border-color:rgba(124,255,178,.45)}
+  .btn.warn{border-color:rgba(255,92,122,.45)}
+  .pill{display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:999px; background:#0e1830; border:1px solid rgba(255,255,255,0.08); font-size:14px; color:var(--muted)}
+  .kbd{background:#0b1326; border:1px solid rgba(255,255,255,.1); padding:10px; border-radius:12px; text-align:center; font-size:22px}
+  .keys{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  .speak{color:var(--accent2)}
+  .muted{color:var(--muted)}
+  .right{margin-left:auto}
+  .badge{padding:6px 10px; border-radius:999px; background:#0e1b34; color:var(--accent); border:1px solid rgba(0,229,255,.35); font-size:12px}
+  .hr{height:1px; background:linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent); margin:14px 0}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row" style="gap:12px; align-items:center">
+        <h1>⚡ Electricity Usage Pattern Analyzer</h1>
+        <span class="badge">Voice‑First · Offline</span>
+        <span class="right pill">Made for non‑readers: tap 🎤 & digits</span>
+      </div>
+
+      <div class="grid g2">
+        <!-- LEFT: Capture -->
+        <section class="card">
+          <h2>1) Add Today’s Units</h2>
+          <div class="grid g2">
+            <div>
+              <label>📅 Date</label>
+              <input id="date" type="date" />
+            </div>
+            <div>
+              <label>🔢 Units (kWh)</label>
+              <input id="kwh" type="text" inputmode="decimal" placeholder="0.0"/>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:12px">
+            <button id="micBtn" class="btn" style="flex:1">🎤 Speak Units</button>
+            <button id="saveBtn" class="btn primary" style="flex:1">💾 Save</button>
+          </div>
+
+          <div style="margin-top:14px">
+            <label class="muted">Tap digits (for non‑readers)</label>
+            <div class="keys">
+              <button class="btn k">7</button>
+              <button class="btn k">8</button>
+              <button class="btn k">9</button>
+              <button class="btn k">4</button>
+              <button class="btn k">5</button>
+              <button class="btn k">6</button>
+              <button class="btn k">1</button>
+              <button class="btn k">2</button>
+              <button class="btn k">3</button>
+              <button class="btn k">0</button>
+              <button class="btn k">.</button>
+              <button id="backBtn" class="btn warn">⌫</button>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <button id="clearBtn" class="btn warn" style="flex:1">🧹 Clear</button>
+              <button id="last10Btn" class="btn" style="flex:1">🕘 Last 10</button>
+            </div>
+            <div id="last10" class="mono muted" style="margin-top:8px; white-space:pre-wrap"></div>
+          </div>
+        </section>
+
+        <!-- RIGHT: Report -->
+        <section class="card">
+          <h2>2) Hear Report</h2>
+          <div class="grid g2">
+            <div>
+              <label>Start</label>
+              <input id="start" type="date" />
+            </div>
+            <div>
+              <label>End</label>
+              <input id="end" type="date" />
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="reportBtn" class="btn success" style="flex:1">📣 Speak Report</button>
+            <button id="textReportBtn" class="btn" style="flex:1">📝 Show Text</button>
+          </div>
+          <div id="report" class="mono" style="margin-top:10px; white-space:pre-wrap"></div>
+        </section>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid g3">
+        <section class="card">
+          <h2>3) Settings</h2>
+          <div class="grid g2">
+            <div>
+              <label>₹ per unit</label>
+              <input id="rate" type="number" step="0.01" />
+            </div>
+            <div>
+              <label>Fixed charge (₹)</label>
+              <input id="fixed" type="number" step="0.01" />
+            </div>
+            <div>
+              <label>Trend lookback days (N)</label>
+              <input id="lookback" type="number" step="1" />
+            </div>
+            <div>
+              <label>Predict next days</label>
+              <input id="predict" type="number" step="1" />
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="saveCfg" class="btn primary" style="flex:1">✅ Save Settings</button>
+            <select id="voiceSelect" style="flex:1"></select>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>4) Data</h2>
+          <div class="row">
+            <button id="exportBtn" class="btn" style="flex:1">⬇️ Export CSV</button>
+            <label class="btn" style="flex:1; text-align:center; cursor:pointer">⬆️ Import CSV
+              <input id="importFile" type="file" accept=".csv" style="display:none" />
+            </label>
+          </div>
+          <p class="muted" style="margin-top:10px">CSV columns: <span class="mono">date,kwh</span> (YYYY-MM-DD)</p>
+        </section>
+
+        <section class="card">
+          <h2>Tips</h2>
+          <ul>
+            <li>Tap 🎤 and say: <em>“five point six”</em> → it fills units.</li>
+            <li>Big digits are for easy tap (no reading needed).</li>
+            <li>“Speak Report” reads totals, spikes, weekends, and prediction.</li>
+            <li>Works offline. All data stays in your browser (local only).</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ===== Local storage helpers =====
+  const LS_KEY = 'eupa_data_v1'; // [{date:'YYYY-MM-DD', kwh:number}]
+  const CFG_KEY = 'eupa_cfg_v1';
+
+  function loadData(){
+    try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch{ return [] }
+  }
+  function saveData(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+  function loadCfg(){
+    const d = { rate:6.0, fixed:0.0, lookback:14, predict:30, voice:'' };
+    try{ return Object.assign(d, JSON.parse(localStorage.getItem(CFG_KEY)||'{}')); }catch{ return d }
+  }
+  function saveCfg(cfg){ localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+
+  // ===== DOM =====
+  const el = id=>document.getElementById(id);
+  const date = el('date'), kwh = el('kwh'), saveBtn = el('saveBtn'), micBtn = el('micBtn');
+  const start = el('start'), end = el('end'), reportBtn = el('reportBtn'), textReportBtn = el('textReportBtn'), report = el('report');
+  const backBtn = el('backBtn'), clearBtn = el('clearBtn'), last10Btn = el('last10Btn'), last10 = el('last10');
+  const rate = el('rate'), fixed = el('fixed'), lookback = el('lookback'), predict = el('predict'), saveCfgBtn = el('saveCfg');
+  const voiceSelect = el('voiceSelect');
+  const exportBtn = el('exportBtn'), importFile = el('importFile');
+
+  // init dates
+  const todayStr = new Date().toISOString().slice(0,10);
+  date.value = todayStr; start.value = todayStr; end.value = todayStr;
+
+  // load cfg
+  const cfg = loadCfg();
+  rate.value = cfg.rate; fixed.value = cfg.fixed; lookback.value = cfg.lookback; predict.value = cfg.predict;
+
+  // ===== Speech Synthesis (output) =====
+  let allVoices = [];
+  function loadVoices(){ allVoices = window.speechSynthesis.getVoices(); fillVoiceSelect(); }
+  function fillVoiceSelect(){
+    const preferred = cfg.voice;
+    voiceSelect.innerHTML='';
+    const opts = [
+      // Some India‑friendly defaults first if present
+      'en-IN','hi-IN','ta-IN','te-IN','bn-IN','mr-IN','en-GB','en-US'
+    ];
+    const listed = [];
+    allVoices.forEach(v=>{
+      const tag = `${v.name} (${v.lang})`;
+      if(!listed.includes(tag)){
+        const o = document.createElement('option');
+        o.value = v.name; o.textContent = tag; voiceSelect.appendChild(o); listed.push(tag);
+      }
+    });
+    if(preferred){ voiceSelect.value = preferred; }
+  }
+  window.speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
+
+  function speak(text){
+    const u = new SpeechSynthesisUtterance(text);
+    const name = voiceSelect.value;
+    if(name){ const v = allVoices.find(v=>v.name===name); if(v) u.voice = v; }
+    u.rate = 1.0; u.pitch = 1.0; u.lang = (u.voice && u.voice.lang) || 'en-IN';
+    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+  }
+
+  // ===== Speech Recognition (input) =====
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  function wordsToNumber(s){
+    // Parse simple phrases like "five point six" or digits like "5.6"
+    s = (s||'').toLowerCase().trim();
+    if(!s) return NaN;
+    // Try direct parse first
+    const direct = parseFloat(s.replace(/[^0-9.]/g,''));
+    if(!isNaN(direct)) return direct;
+    const map = {zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9};
+    const parts = s.split(/\s+/);
+    let out = ''; let hadPoint = false;
+    for(const w of parts){
+      if(w==='point' || w==='dot'){ out += '.'; hadPoint = true; continue; }
+      if(map.hasOwnProperty(w)){ out += String(map[w]); continue; }
+      // If any other word (ignore)
+    }
+    const val = parseFloat(out);
+    return hadPoint || out.length>0 ? val : NaN;
+  }
+
+  micBtn.addEventListener('click', ()=>{
+    if(!SR){ alert('Speech input not supported on this browser.'); return; }
+    const rec = new SR();
+    rec.lang = 'en-IN'; rec.interimResults = false; rec.maxAlternatives = 1;
+    rec.onresult = e=>{
+      const t = e.results[0][0].transcript;
+      const n = wordsToNumber(t);
+      if(!isNaN(n)){ kwh.value = String(n); speak(`Recorded ${n} units`); }
+      else { speak('Sorry, say the number like five point six'); }
+    };
+    rec.onerror = ()=> speak('Could not hear you, please try again');
+    rec.start();
+  });
+
+  // ===== Data helpers =====
+  function getAll(){
+    const a = loadData();
+    // keep unique by date: last write wins
+    const map = new Map();
+    a.forEach(r=> map.set(r.date, Number(r.kwh)) );
+    return [...map.entries()].map(([d,k])=>({date:d,kwh:Number(k)})).sort((x,y)=>x.date.localeCompare(y.date));
+  }
+  function upsert(dateStr, val){
+    const arr = getAll();
+    const i = arr.findIndex(r=>r.date===dateStr);
+    if(i>=0) arr[i].kwh = val; else arr.push({date:dateStr, kwh:val});
+    arr.sort((a,b)=>a.date.localeCompare(b.date));
+    saveData(arr);
+  }
+
+  // Stats
+  function mean(xs){ return xs.length? xs.reduce((a,b)=>a+b,0)/xs.length : 0 }
+  function variance(xs){ if(!xs.length) return 0; const m=mean(xs); return xs.reduce((s,x)=>s+(x-m)*(x-m),0)/xs.length }
+  function std(xs){ return Math.sqrt(variance(xs)) }
+  function isWeekend(dstr){ const d = new Date(dstr+"T00:00:00"); const w = d.getDay(); return w===0||w===6 }
+
+  function linearFit(ys){
+    if(!ys.length) return {a:0,b:0};
+    const xs = ys.map((_,i)=>i+1);
+    const n=ys.length, sx=xs.reduce((a,b)=>a+b,0), sy=ys.reduce((a,b)=>a+b,0);
+    const sxx=xs.reduce((a,b)=>a+b*b,0), sxy=xs.reduce((a,b,i)=>a+b*ys[i],0);
+    const denom = n*sxx - sx*sx;
+    if(denom===0){ return {a:mean(ys), b:0}; }
+    const b = (n*sxy - sx*sy)/denom;
+    const a = (sy - b*sx)/n;
+    return {a,b};
+  }
+
+  function predictNext(lastYs, days){
+    const {a,b} = linearFit(lastYs);
+    const start = lastYs.length + 1;
+    const out=[];
+    for(let t=start; t<start+days; t++){
+      const y = a + b*t; out.push(Math.max(0, y));
+    }
+    return out;
+  }
+
+  // UI actions
+  document.querySelectorAll('.k').forEach(btn=>{
+    btn.addEventListener('click',()=>{ kwh.value = (kwh.value||'') + btn.textContent.trim(); })
+  });
+  backBtn.addEventListener('click',()=>{ kwh.value = (kwh.value||'').slice(0,-1) });
+  clearBtn.addEventListener('click',()=>{ kwh.value = '' });
+
+  last10Btn.addEventListener('click',()=>{
+    const a = getAll();
+    const tail = a.slice(-10);
+    last10.textContent = tail.length? tail.map(r=>`${r.date}  ${r.kwh.toFixed(2)} kWh`).join('\n') : '(no data)';
+  });
+
+  saveBtn.addEventListener('click',()=>{
+    const d = date.value || todayStr; const v = parseFloat(kwh.value);
+    if(!isFinite(v) || v<0){ speak('Please enter a valid number'); return; }
+    upsert(d, v);
+    speak(`Saved ${v} units for ${d}`);
+    kwh.value=''; last10Btn.click();
+  });
+
+  // Settings
+  saveCfgBtn.addEventListener('click',()=>{
+    const cfg2 = { rate: Number(rate.value)||0, fixed: Number(fixed.value)||0, lookback: Math.max(1, parseInt(lookback.value||'14')), predict: Math.max(1, parseInt(predict.value||'30')), voice: voiceSelect.value||'' };
+    saveCfg(cfg2); speak('Settings saved');
+  });
+
+  // Report
+  function makeReport(){
+    const a = getAll();
+    const s = start.value, e = end.value;
+    const sub = a.filter(r=>r.date>=s && r.date<=e);
+    if(!sub.length) return 'No data in selected days.';
+    const vals = sub.map(r=>r.kwh);
+    const m = mean(vals), sd = std(vals), total = vals.reduce((x,y)=>x+y,0);
+
+    const spikes = [];
+    const limit = m + 2*sd;
+    sub.forEach(r=>{ if(sd===0? r.kwh>m : r.kwh>limit){ spikes.push(r); } });
+
+    const wd = sub.filter(r=>!isWeekend(r.date)).map(r=>r.kwh);
+    const we = sub.filter(r=> isWeekend(r.date)).map(r=>r.kwh);
+    const wdAvg = mean(wd), weAvg = mean(we);
+    let weekendLine = 'Not enough data to compare.';
+    if(wd.length && we.length){
+      const pct = wdAvg? ((weAvg-wdAvg)/wdAvg*100) : 0;
+      if(pct>0) weekendLine = `Weekend is ${pct.toFixed(1)}% higher than weekdays.`;
+      else if(pct<0) weekendLine = `Weekend is ${Math.abs(pct).toFixed(1)}% lower than weekdays.`;
+      else weekendLine = 'Weekend equals weekday usage.';
+    }
+
+    const cfgNow = loadCfg();
+    const tail = a.slice(-cfgNow.lookback).map(r=>r.kwh);
+    const preds = predictNext(tail, cfgNow.predict);
+    const predTotal = preds.reduce((x,y)=>x+y,0);
+    const est = predTotal*cfgNow.rate + cfgNow.fixed;
+
+    const lines = [
+      `Report: ${s} to ${e}. Days ${vals.length}.`,
+      `Total ${total.toFixed(2)} kWh. Average ${m.toFixed(2)}. Std dev ${sd.toFixed(2)}.`,
+      `Cost now: ₹${(total*cfgNow.rate).toFixed(2)} at ₹${cfgNow.rate.toFixed(2)}/unit.`,
+      spikes.length? `Spikes: ${spikes.map(r=>`${r.date} ${r.kwh.toFixed(2)}kWh`).join('; ')}` : 'No spikes (mean + 2σ rule).',
+      `Weekend vs Weekday: ${weekendLine}`,
+      `Prediction next ${cfgNow.predict} day(s): ${predTotal.toFixed(2)} kWh → ₹${est.toFixed(2)} (incl. fixed ₹${cfgNow.fixed.toFixed(2)}).`
+    ];
+    return lines.join('\n');
+  }
+
+  textReportBtn.addEventListener('click',()=>{ report.textContent = makeReport(); });
+  reportBtn.addEventListener('click',()=>{ const t = makeReport(); report.textContent = t; speak(t); });
+
+  // Export / Import CSV
+  exportBtn.addEventListener('click',()=>{
+    const a = getAll();
+    const rows = [['date','kwh'], ...a.map(r=>[r.date, r.kwh])];
+    const csv = rows.map(r=>r.join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const aTag = document.createElement('a');
+    aTag.href = url; aTag.download = 'usage.csv'; aTag.click(); URL.revokeObjectURL(url);
+  });
+
+  importFile.addEventListener('change', ev=>{
+    const f = ev.target.files && ev.target.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const text = String(reader.result||'');
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      const out = [];
+      for(let i=0;i<lines.length;i++){
+        if(i===0 && /^\s*date\s*,\s*kwh/i.test(lines[0])) continue; // skip header
+        const [d,k] = lines[i].split(',');
+        if(!d) continue; const v = parseFloat(k);
+        if(isFinite(v)) out.push({date:d.trim(), kwh:v});
+      }
+      // merge
+      const map = new Map();
+      getAll().forEach(r=>map.set(r.date, r.kwh));
+      out.forEach(r=>map.set(r.date, r.kwh));
+      const merged = [...map.entries()].map(([date,kwh])=>({date,kwh})).sort((a,b)=>a.date.localeCompare(b.date));
+      saveData(merged); speak('Imported data'); last10Btn.click();
+    };
+    reader.readAsText(f);
+  });
+
+  // On load, show last 10
+  last10Btn.click();
+})();
+</script>
+</body>
+</html>
